@@ -17,6 +17,7 @@ public class showhand_client_1 extends Frame implements Runnable {
         //}
 
         //servername= args[0];
+
         servername= "localhost";
         //port=Integer.parseInt(args[1]);
         port = 1235;
@@ -64,6 +65,88 @@ public class showhand_client_1 extends Frame implements Runnable {
         catch(IOException ex){
             ex.printStackTrace();
         }
+    }
+    public static String sort_card(String cards)
+    {
+        int i;
+        String[] card = cards.split(",");
+        String sorted = "";
+        Arrays.sort(card);
+        for(i = 0;i < 5;i++) {
+            sorted += card[i] + ",";
+            //System.out.println(card[i]);
+        }
+        return sorted;
+    }
+    public static char color(String card)
+    {
+        return card.charAt(0);
+    }
+    public static int point(String card)
+    {
+        return Integer.parseInt(card.substring(1, 3));
+    }
+    public static void score_counting(String cards)
+    {
+        cards = sort_card(cards);
+        String[] card = cards.split(",");
+        int card_score = 0;
+        int i;
+
+
+        boolean straight_flush = false; //同花順
+        boolean flush = true;
+        boolean straight = true;
+        for(i=0;i<4;i++) {
+            if(color(card[i]) != color(card[i+1])) {
+                flush = false;
+            }
+            if(point(card[i]) != point(card[i+1])-1) {
+                straight = false;
+            }
+        }
+        if(straight && flush) {
+            straight_flush = true;
+        }
+
+
+
+        boolean four_of_a_kind = false;
+        boolean full_house = false;
+        boolean three_of_a_kind = false;
+        int pair_count = 0;
+        List count_repeat = new ArrayList();
+        for(i=0;i<5;i++) {
+            count_repeat.add(point(card[i]));
+        }
+        for(i = 2;i<=14;i++) {
+            if(Collections.frequency(count_repeat, i) == 4) {
+                four_of_a_kind = true;
+                break;
+            }
+            if(Collections.frequency(count_repeat, i) == 3) {
+                three_of_a_kind = true;
+            }
+            if(Collections.frequency(count_repeat, i) == 2) {
+                pair_count += 1;
+            }
+        }
+        if(three_of_a_kind == true && pair_count == 1) {
+            full_house = true;
+            three_of_a_kind = false;
+            pair_count -= 1;
+        }
+
+
+
+
+
+
+
+        System.out.println("鐵支 = " + four_of_a_kind);
+        System.out.println("葫蘆 = " + full_house);
+        System.out.println("三條 = " + three_of_a_kind);
+        System.out.println("胚數 = " + pair_count);
     }
 
 }
