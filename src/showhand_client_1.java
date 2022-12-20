@@ -92,6 +92,7 @@ public class showhand_client_1 extends Frame implements Runnable {
         String[] card = cards.split(",");
         int card_score = 0;
         int i;
+        int card_type = 0;
 
 
         boolean straight_flush = false; //同花順
@@ -105,9 +106,15 @@ public class showhand_client_1 extends Frame implements Runnable {
                 straight = false;
             }
         }
+        if(straight)card_type = 4;
+        if (flush)card_type = 5;
         if(straight && flush) {
             straight_flush = true;
+            flush = false;
+            straight = false;
+            card_type = 8;
         }
+
 
 
 
@@ -122,31 +129,30 @@ public class showhand_client_1 extends Frame implements Runnable {
         for(i = 2;i<=14;i++) {
             if(Collections.frequency(count_repeat, i) == 4) {
                 four_of_a_kind = true;
+                card_type = 7;
                 break;
             }
             if(Collections.frequency(count_repeat, i) == 3) {
                 three_of_a_kind = true;
+                card_type = 3;
             }
             if(Collections.frequency(count_repeat, i) == 2) {
                 pair_count += 1;
+                if(pair_count == 2) {
+                    card_type = 2;
+                }
+                else card_type = 1;
             }
         }
         if(three_of_a_kind == true && pair_count == 1) {
             full_house = true;
             three_of_a_kind = false;
             pair_count -= 1;
+            card_type = 6;
         }
 
 
 
-
-
-
-
-        System.out.println("鐵支 = " + four_of_a_kind);
-        System.out.println("葫蘆 = " + full_house);
-        System.out.println("三條 = " + three_of_a_kind);
-        System.out.println("胚數 = " + pair_count);
     }
 
 }
