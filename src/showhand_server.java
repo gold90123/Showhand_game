@@ -1,18 +1,54 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-public class showhand_server {
-    // 初始化玩家，為每個玩家取名
-    int player_numbers = 0;
-    public void initPlayer(String names)
-    {
-        // 檢查玩家數量
-        player_numbers++;
-        if(player_numbers >= 5){
-            //
-        }
-    }
 
+class Global_cards{
+    static List<String> cards = new LinkedList<String>(); // 記住整副撲克牌
+}
+
+class Global_player{
+    static List<String> player_name = new LinkedList<String>(); // 記住玩家的名字
+}
+
+class client1_cards{
+    static List<String> cards = new LinkedList<String>(); // 記住玩家 1 的手牌
+    static long score = 0; // 記住玩家 1 的分數
+    static boolean ready = false; // 記住玩家 1 是否已回傳分數
+    static boolean raise = false;
+    static boolean pass = false;
+    static boolean drop = false;
+    static boolean showhand = false;
+
+}
+
+class client2_cards{
+    static List<String> cards = new LinkedList<String>(); // 記住玩家 2 的手牌
+    static long score = 0; // 記住玩家 2 的分數
+    static boolean ready = false; // 記住玩家 2 是否已回傳分數
+    static boolean raise = false;
+    static boolean pass = false;
+    static boolean drop = false;
+    static boolean showhand = false;
+}
+
+public class showhand_server {
+    // 定義最多遊玩人數
+    static final int PLAY_NUM = 2;
+    // 定義入場費
+    static final int Entrance_fee = 200;
+    // 定義撲克牌的花色
+    static String[] suits = {"d", "c", "h", "s"}; // 方塊、梅花、紅心、黑桃
+    // 定義撲克牌的點數
+    // 11 = J, 12 = Q, 13 = K, 14 = A
+    static String[] values = {"02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"};
+    // 遊戲初始金額 (初始化)
+    static Integer[] Initial_amount = new Integer[PLAY_NUM];
+    // 每次的下注值 (初始化)
+    static Integer[] bet_amount = new Integer[PLAY_NUM];
+    // 定義所有的玩家 (初始化)
+    static String[] players = new String[PLAY_NUM];
+    // 所有玩家手上的撲克牌
+    static List<String>[] playersCards = new List[PLAY_NUM];
     // 開啟伺服器，使用 TCP 來連接
     private static ServerSocket SSocket;
     private static int port;
@@ -21,26 +57,78 @@ public class showhand_server {
 
     public showhand_server() throws IOException
     {
+        // 開啟伺服器前，先洗牌
+        initCards();
+        // 開啟 socket，接收 client
         try {
             SSocket = new ServerSocket(port);
             System.out.println("Server created.");
             System.out.println("waiting for client to connect...");
-
+            int player = 0;
             while(true) {
-                socket = SSocket.accept();
-                System.out.println("connected from Client " +
-                        socket.getInetAddress().getHostAddress());
+                // 每進來一次代表就有一個 client 連線，計算 client 總數
+                player++;
 
+                // 獲取 client 資訊
+                socket = SSocket.accept();
+                System.out.println("connected from Client " + socket.getInetAddress().getHostAddress());
                 DataOutputStream outstream = new DataOutputStream(socket.getOutputStream());
+
+                // 直接分配每個 client 5 張牌
+                switch(player){
+                    case 1:
+                        // 顯示玩家的牌
+                        System.out.print("Player1: ");
+                        for(int i = 0; i < 5; i++){
+                            client1_cards.cards.add(Global_cards.cards.get(0));
+                            Global_cards.cards.remove(0);
+                            // 顯示玩家的牌
+                            System.out.print(client1_cards.cards.get(i));
+                        }
+                        // 顯示玩家的牌
+                        System.out.print("\n");
+                        break;
+                    case 2:
+                        // 顯示玩家的牌
+                        System.out.print("Player2: ");
+                        for(int i = 0; i < 5; i++){
+                            client2_cards.cards.add(Global_cards.cards.get(0));
+                            Global_cards.cards.remove(0);
+                            // 顯示玩家的牌
+                            System.out.print(client2_cards.cards.get(i));
+                        }
+                        // 顯示玩家的牌
+                        System.out.print("\n");
+                        break;
+                    default:
+                        System.out.println("Players are too much!!"); // 目前只支持雙人對戰
+                }
+
+                // 把該 client 的資訊放進 HashTable
                 ht.put(socket, outstream);
-                Thread thread = new Thread(new ServerThread(socket, ht));
+                // 為該 client 開啟一個 thread
+                Thread thread = new Thread(new ServerThread(socket, ht, player));
                 thread.start();
+                System.out.println("player: " + player);
             }
         }
         catch (IOException ex) {
             ex.printStackTrace();
         }
     }
+
+    // 初始化牌組 (發牌一次就是發一張，如果是第一輪，就發送兩次)
+    public void initCards(){
+        // 首先放入 52 張撲克牌
+        for(int i = 0; i < suits.length; i++){
+            for(int j = 0; j < values.length; j++){
+                Global_cards.cards.add(suits[i] + values[j]);
+            }
+        }
+        // 隨機排列
+        Collections.shuffle(Global_cards.cards);
+    }
+
 
     public static void main(String[] args) throws Exception {
         //if (args.length < 1) {
@@ -58,83 +146,182 @@ public class showhand_server {
 class ServerThread extends Thread implements Runnable {
     private Socket socket;
     private Hashtable ht;
+    private int player;
 
-    public ServerThread(Socket socket, Hashtable ht) {
+    public ServerThread(Socket socket, Hashtable ht, int player) {
         this.socket = socket;
         this.ht = ht;
+        this.player = player;
     }
 
     public void run() {
+        DataOutputStream outstream;
         DataInputStream instream;
-
         try {
+            outstream = new DataOutputStream(socket.getOutputStream());
             instream = new DataInputStream(socket.getInputStream());
-
             while (true) {
-                // 定義最多遊玩人數
-                final int PLAY_NUM = 5;
-                // 定義入場費
-                final int Entrance_fee = 200;
-                // 定義撲克牌的花色
-                String[] suits = {"d", "c", "h", "s"}; // 方塊、梅花、紅心、黑桃
-                // 定義撲克牌的點數
-                // 11 = J, 12 = Q, 13 = K, 14 = A
-                String[] values = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"};
-                // 遊戲初始金額 (初始化)
-                Integer[] Initial_amount = new Integer[PLAY_NUM];
-                // 每次的下注值 (初始化)
-                Integer[] bet_amount = new Integer[PLAY_NUM];
-                // cards 是一局遊戲中剩下的撲克牌 (初始化)
-                List<String> cards = new LinkedList<String>();
-                // 定義所有的玩家 (初始化)
-                String[] players = new String[PLAY_NUM];
-                // 所有玩家手上的撲克牌
-                List<String>[] playersCards = new List[PLAY_NUM];
-                // 初始化牌組，發牌一次就是發一張，如果是第一輪，就發送兩次
-                // 首先放入 52 張撲克牌
-                for(int i = 0; i < suits.length; i++){
-                    for(int j = 0; j < values.length; j++){
-                        cards.add(suits[i] + values[j]);
+                // 詢問 id
+                String ask_id = "Hello, please input your id in below.";
+                outstream.writeUTF(ask_id);
+                System.out.println("已傳送問題(詢問 id)");
+                // 回收他們回傳的 id
+                String id = instream.readUTF();
+                Global_player.player_name.add(id); // 把 id 加到全域的 player_name
+
+                // 使用兩個 linkedList 存牌
+                LinkedList my_cards = new LinkedList(); // 負責存自己的明牌
+                LinkedList opponent_cards = new LinkedList(); // 負責存對手的明牌
+
+                // 複製牌型
+                switch (player) {
+                    case 1:
+                        my_cards = (LinkedList) ((LinkedList) client1_cards.cards).clone();
+                        opponent_cards = (LinkedList) ((LinkedList) client2_cards.cards).clone();
+                        break;
+                    case 2:
+                        my_cards = (LinkedList) ((LinkedList) client2_cards.cards).clone();
+                        opponent_cards = (LinkedList) ((LinkedList) client1_cards.cards).clone();
+                        break;
+                    default:
+                        System.out.println("Players too much!!"); // 目前只支持兩人對戰
+                }
+
+                // 發送給 client 第一輪的撲克牌
+                outstream.writeUTF((String) my_cards.get(0));  // 發送第一張牌，也就是底牌
+                System.out.println("send player" + player + "'s (hole-card): " + my_cards.get(0));
+                outstream.writeUTF((String) my_cards.get(1)); // 發送第二張牌給自己，也就是第一張明牌
+                System.out.println("send player" + player + "'s (first-card) " + my_cards.get(1));
+
+                // 發送給 client，對手的明牌
+                outstream.writeUTF((String) opponent_cards.get(1)); // 發送對手的第一張明牌
+                System.out.println("send opponent's (first-card): " + opponent_cards.get(1));
+
+                // 接收 client 算好的牌分，並且紀錄好
+                long score = instream.readLong();
+                switch (player) {
+                    case 1:
+                        client1_cards.score = score; // 儲存分數
+                        client1_cards.ready = true; // 代表已經儲存好了
+                        System.out.println("client1 is ready");
+                        break;
+                    case 2:
+                        client2_cards.score = score; // 儲存分數
+                        client2_cards.ready = true; // 代表已經儲存好了
+                        System.out.println("client2 is ready");
+                        break;
+                    default:
+                        System.out.println("Players too much"); // 目前只支持兩人對戰
+                }
+                System.out.println("Score: " + score);
+
+
+                while (!client1_cards.ready || !client2_cards.ready) {
+                    /*System.out.println("client1:" + client1_cards.ready);
+                    System.out.println("client2:" + client2_cards.ready);*/
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
                     }
                 }
-                // 隨機排列
-                Collections.shuffle(cards);
-                synchronized (ht) {
-                    for (Enumeration e = ht.elements(); e.hasMoreElements(); ) {
-                        // 傳輸問題訊問 id
-                        String ask_id = "Hello, please input your id in below.";
-                        DataOutputStream outstream = (DataOutputStream)e.nextElement();
-                        outstream.writeUTF(ask_id);
-                        System.out.println("已傳送問題(詢問 id)");
-                        // 回收他們回傳的 id
-                        String id = instream.readUTF();
-                        System.out.println("id: " + id);
-                        // 發送給他們撲克牌
-                        String send_poker = cards.get(0);
-                        // 發送第一張牌，也就是底牌
-                        outstream.writeUTF(send_poker);
-                        System.out.println("send_poker: " + send_poker);
-                        send_poker = cards.get(1);
-                        // 發送第二章牌，也就是第一張明牌
-                        outstream.writeUTF(send_poker);
-                        System.out.println("send_poker: " + send_poker);
+                // 比較牌分大小，牌分比較大的可以講話，牌分小的則是要等到對面講完話，自己才可以講
+                // 傳輸訊息給點數較大者，讓他選擇動作
+                // 傳輸訊息給點數較小者，讓他等待
+                // System.out.println("無窮迴圈中"); // 加了這行，牌分小的才會收到訊息??
+                if (client1_cards.ready && client2_cards.ready) {
+                    System.out.println("已進到判定式");
+                    if (client1_cards.score > client2_cards.score) { // 代表 client1 先說話
+                        switch (player) {
+                            case 1:
+                                outstream.writeUTF("Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)");
+                                System.out.println("已傳送問題(詢問 talker 下一步動作)");
+                                // 等待點數較大的人的回答
+                                String decision = instream.readUTF();
+                                System.out.println("已接收到 talker 的回答");
+                                if (decision.equalsIgnoreCase("raise")) { // 選擇了加注
+                                    client1_cards.raise = true;
+                                } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
+                                    client1_cards.pass = true;
+                                } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
+                                    client1_cards.drop = true;
+                                } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
+                                    client1_cards.showhand = true;
+                                } else {
+                                    System.out.println("沒有回答要做甚麼動作，或回答錯誤");
+                                }
+                                break;
+                            case 2:
+                                outstream.writeUTF("Your card is smaller than your opponent, please wait for his choice...");
+                                System.out.println("已叫牌分較小的使用者等待 talker");
+                                while (true) {
+                                    if (client1_cards.raise) { // 表示對手選擇了加注
+                                        outstream.writeUTF("Your opponent chose to raise!");
+                                        client1_cards.raise = false;
+                                        break;
+                                    } else if (client1_cards.pass) {
+                                        outstream.writeUTF("Your opponent chose to pass!");
+                                        client1_cards.pass = false;
+                                        break;
+                                    } else if (client1_cards.drop) {
+                                        outstream.writeUTF("Your opponent chose to drop!");
+                                        client1_cards.drop = false;
+                                        break;
+                                    } else if (client1_cards.showhand) {
+                                        outstream.writeUTF("Your opponent chose to showhand!!");
+                                        client1_cards.showhand = false;
+                                        break;
+                                    }
+                                }
+                                break;
+                        }
+                    } else if (client2_cards.score > client1_cards.score) {
+                        switch (player) {
+                            case 1:
+                                outstream.writeUTF("Your card is smaller than your opponent, please wait for his choice");
+                                while (true) {
+                                    if (client2_cards.raise) { // 表示對手選擇了加注
+                                        outstream.writeUTF("Your opponent chose to raise!");
+                                        client2_cards.raise = false;
+                                        break;
+                                    } else if (client2_cards.pass) {
+                                        outstream.writeUTF("Your opponent chose to pass!");
+                                        client2_cards.pass = false;
+                                        break;
+                                    } else if (client2_cards.drop) {
+                                        outstream.writeUTF("Your opponent chose to drop!");
+                                        client2_cards.drop = false;
+                                        break;
+                                    } else if (client2_cards.showhand) {
+                                        outstream.writeUTF("Your opponent chose to showhand!!");
+                                        client2_cards.showhand = false;
+                                        break;
+                                    }
+                                }
+                                break;
+                            case 2:
+                                outstream.writeUTF("Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)");
+                                // 等待點數較大的人的回答
+                                String decision = instream.readUTF();
+                                if (decision.equalsIgnoreCase("raise")) { // 選擇了加注
+                                    client2_cards.raise = true;
+                                } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
+                                    client2_cards.pass = true;
+                                } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
+                                    client2_cards.drop = true;
+                                } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
+                                    client2_cards.showhand = true;
+                                } else {
+                                    System.out.println("沒有回答要做甚麼動作，或回答錯誤");
+                                }
+                                break;
+                        }
                     }
+                    break; // 表示有收到兩邊 client 的確認，跳出永久 while 迴圈
                 }
             }
-        }
-        catch (IOException ex) {
-        }
-        finally {
-            synchronized (ht) {
-                System.out.println("Remove connection: " + socket);
-
-                ht.remove(socket);
-
-                try {
-                    socket.close();
-                } catch (IOException ex) {
-                }
-            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }
