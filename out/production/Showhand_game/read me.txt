@@ -1,0 +1,4 @@
+This is a Show hand poker game, it is a variant of Stud poker.
+We tried to design this game as a online poker battle game.
+The number of participants can be 2 ~ 5.
+testing
