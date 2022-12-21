@@ -37,7 +37,7 @@ public class showhand_server {
     // 定義入場費
     static final int Entrance_fee = 200;
     // 定義撲克牌的花色
-    static String[] suits = {"d", "c", "h", "s"}; // 方塊、梅花、紅心、黑桃
+    static String[] suits = {"D", "C", "H", "S"}; // 方塊、梅花、紅心、黑桃
     // 定義撲克牌的點數
     // 11 = J, 12 = Q, 13 = K, 14 = A
     static String[] values = {"02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"};

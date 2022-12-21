@@ -74,7 +74,10 @@ public class showhand_client_2 extends Frame implements Runnable {
                 System.out.println("Your opponent's card 1 is: " + card);
 
                 // 算牌分，回傳給 server
-                long score = 5432;
+                card = Client2_OwnCard.owncardlist.get(0) + "," + Client2_OwnCard.owncardlist.get(1) + ",000,000,000";
+                System.out.println(card);
+                long score = score_counting(card);
+                System.out.println("real score is: " + score);
                 outstream.writeLong(score);
 
                 // 顯示伺服器的評估結果
@@ -204,7 +207,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                     break;
             }
         }
-        if(three_of_a_kind == true && pair_count == 1) {
+        if(three_of_a_kind && pair_count == 1) {
             full_house = true;
             three_of_a_kind = false;
             pair_count -= 1;

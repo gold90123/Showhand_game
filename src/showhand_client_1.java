@@ -74,7 +74,10 @@ public class showhand_client_1 extends Frame implements Runnable {
                 System.out.println("Your opponent's card 1 is: " + card);
 
                 // 算牌分，回傳給 server
-                long score = 9876;
+                card = Client1_OwnCard.owncardlist.get(0) + "," + Client1_OwnCard.owncardlist.get(1) + ",000,000,000";
+                System.out.println(card);
+                long score = score_counting(card);
+                System.out.println("real score is: " + score);
                 outstream.writeLong(score);
 
                 // 顯示伺服器的評估結果
