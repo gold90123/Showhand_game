@@ -74,7 +74,13 @@ public class showhand_client_2 extends Frame implements Runnable {
                 System.out.println("Your opponent's card 1 is: " + card);
 
                 // 算牌分，回傳給 server
-                card = Client2_OwnCard.owncardlist.get(0) + "," + Client2_OwnCard.owncardlist.get(1) + ",000,000,000";
+
+                //底牌分數要最後算
+                card = "000,000,000,000,000";
+                //card = card.replaceFirst("000", Client2_OwnCard.owncardlist.get(0));
+                card = card.replaceFirst("000", Client2_OwnCard.owncardlist.get(1));
+
+                //card = Client2_OwnCard.owncardlist.get(0) + "," + Client2_OwnCard.owncardlist.get(1) +  ",000,000,000";
                 System.out.println(card);
                 long score = score_counting(card);
                 System.out.println("real score is: " + score);
@@ -121,10 +127,9 @@ public class showhand_client_2 extends Frame implements Runnable {
             default : return 0;
         }
     }
-    public static long score_counting(String cards)
+    public static long score_counting(String cards)   //判定各個牌型並計算牌分，輸入字串(ex."C03,C12,C07,000,000")傳回一個long型態的牌分
     {
-        //同色同花 兩對一樣的兔胚
-        cards = sort_card(cards);
+        cards = sort_card(cards);//排序手牌，傳回如輸入格式的字串
         String[] card = cards.split(",");
         long card_score = 0;
         int i;
@@ -132,8 +137,8 @@ public class showhand_client_2 extends Frame implements Runnable {
 
 
         boolean straight_flush = false; //同花順
-        boolean flush = true;
-        boolean straight = true;
+        boolean flush = true; //同花
+        boolean straight = true; //順子
         int[] num_sort = new int[5];
         for(i=0;i<5;i++) {
             num_sort[i] = point(card[i]);
@@ -151,7 +156,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                 flush = false;
             }
         }
-        if(straight) {
+        if(straight) {  //確定為順子時
             card_score += Math.pow(10,5)*num_sort[4];
             for(i = 0;i<5;i++) {
                 if(point(card[i]) == num_sort[4]) {
@@ -159,11 +164,11 @@ public class showhand_client_2 extends Frame implements Runnable {
                 }
             }
         }
-        if (flush) {
+        if (flush) { //確定為同花時
             card_score += Math.pow(10, 6)*num_sort[4];
             card_score+=color_point(card[0]);
         }
-        if(straight && flush) {
+        if(straight && flush) {  //如果為同花順
             straight_flush = true;
             flush = false;
             card_score += Math.pow(10, 9)*point(card[4]);
@@ -172,17 +177,16 @@ public class showhand_client_2 extends Frame implements Runnable {
 
 
 
-        boolean four_of_a_kind = false;
-        boolean full_house = false;
-        boolean three_of_a_kind = false;
-        int pair_count = 0;
+        boolean four_of_a_kind = false; //鐵支
+        boolean full_house = false;//葫蘆
+        boolean three_of_a_kind = false;//三條
+        int pair_count = 0; //計算坯的數量，1為胚，2為兔胚
         List count_repeat = new ArrayList();
         for(i=0;i<5;i++) {
             count_repeat.add(point(card[i]));
         }
-        for(i = 2;i<=14;i++)
+        for(i = 2;i<=14;i++) //將數字頻率記錄成list
         {
-            //System.out.println(i + " = " + Collections.frequency(count_repeat, i));
             switch (Collections.frequency(count_repeat, i))
             {
                 case 4 :
@@ -223,8 +227,15 @@ public class showhand_client_2 extends Frame implements Runnable {
             }
         }
 
-        if(card_score == 0) {
-            card_score += color_point(card[4]) + point(card[4]) * 5;
+        if(card_score == 0) { //如果不符合上述牌型，即為散牌
+            int tmp_max = 0,tmp_max_pos = 0;
+            for(i = 0;i < 5;i++) {
+                if(point(card[i]) > tmp_max) {
+                    tmp_max = point(card[i]);
+                    tmp_max_pos = i;
+                }
+            }
+            card_score += tmp_max*5 + color_point(card[tmp_max_pos]);
         }
 
 
