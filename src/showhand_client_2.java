@@ -7,6 +7,9 @@ import java.util.List;
 class Client2_OwnCard{
     static List<String> owncardlist = new LinkedList<String>();
 }
+class Client2_EnemyCard{
+    static List<String> owncardlist = new LinkedList<String>();
+}
 
 public class showhand_client_2 extends Frame implements Runnable {
     Socket socket;
@@ -52,14 +55,22 @@ public class showhand_client_2 extends Frame implements Runnable {
         while(true){
             try{
                 // 接收問題，並回傳 id
-                String question = instream.readUTF();
-                System.out.println(question);
+                boolean init = false;
+                // 接收問題，並回傳 id
+                String card = ""; //所有收到的牌都會先是這個
+                String User_input = ""; //使用者輸入操作
                 Scanner inputReader = new Scanner(System.in);
-                String User_input = inputReader.next();
-                outstream.writeUTF(User_input);
+                if (!init) {
+                    String question = instream.readUTF();
+                    System.out.println(question);
+                    inputReader = new Scanner(System.in);
+                    User_input = inputReader.next();
+                    outstream.writeUTF(User_input);
+
+                }
 
                 // 接收第一張(底牌 hole-card)
-                String card = instream.readUTF();
+                card = instream.readUTF();
                 Client2_OwnCard.owncardlist.add(card); // 加進專門存放自己的牌組的 list
                 // 接收第二張(第一張明牌)
                 card = instream.readUTF();
@@ -67,6 +78,7 @@ public class showhand_client_2 extends Frame implements Runnable {
 
                 // 接收對手的第一張明牌
                 card = instream.readUTF();
+                Client2_EnemyCard.owncardlist.add(card);
 
                 // 顯示自己以及對手的牌
                 System.out.println("Your hole-card is: " + Client2_OwnCard.owncardlist.get(0));
@@ -75,43 +87,75 @@ public class showhand_client_2 extends Frame implements Runnable {
 
                 // 算牌分，回傳給 server
                 // 底牌分數要最後算
-                card = "000,000,000,000,000";
-                card = card.replaceFirst("000", Client2_OwnCard.owncardlist.get(1));
+                String card_string = "000,000,000,000,000";
+                card_string = card_string.replaceFirst("000", Client2_OwnCard.owncardlist.get(1));
                 System.out.println(card);
-                long score = score_counting(card);
-                System.out.println("real score is: " + score);
+                long score = score_counting(card_string);
+                System.out.println("score is: " + score);
                 outstream.writeLong(score);
 
-                // 顯示伺服器端的評估結果，看自己是牌分較大的人(先講話)，還是牌分較小的人(等待對手講完才可以講)
-                int smaller_or_bigger = instream.read();
-                switch (smaller_or_bigger){
-                    case 0:
-                        // 如果伺服器回傳 0，代表我的牌分比較小，需要等待對面做完動作，才換我動作
-                        System.out.println("Your card is smaller than your opponent, please wait for his choice...");
-                        // 伺服器會回傳對面的動作
-                        String answer = instream.readUTF();
-                        System.out.println(answer); // 印出對面做的動作
-                        // 讀取 client 的動作
-                        User_input = inputReader.next();
-                        outstream.writeUTF(User_input);
-                        break;
-                    case 1:
-                        // 如果伺服器回傳 1，代表我的牌分比較大，可以先做動作
-                        System.out.println("Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)");
-                        // 讀取 client 的動作
-                        User_input = inputReader.next();
-                        outstream.writeUTF(User_input);
-                        break;
-                    default:
-                        System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
-                }
+                for(int card_count = 2;card_count<=4;card_count++)
+                {
 
-                // 就 client 做的動作做出相應的處置
-                if (User_input.equalsIgnoreCase("raise")) { // 選擇了加注
-                    // 詢問使用者要下注多少錢
-                    System.out.println("How much would you like to raise? (Please enter your bet)");
-                    int bet = inputReader.nextInt(); // 讀取下注金額
-                    outstream.write(bet); // 傳送下注金額給伺服器
+
+                    // 顯示伺服器端的評估結果，看自己是牌分較大的人(先講話)，還是牌分較小的人(等待對手講完才可以講)
+                    int smaller_or_bigger = instream.read();
+
+                    System.out.println(smaller_or_bigger); //測試用
+
+                    int opponent_bets = 0;//對手的賭金(follow用)
+                    switch (smaller_or_bigger) {
+                        case 0:
+                            // 如果伺服器回傳 0，代表我的牌分比較小，需要等待對面做完動作，才換我動作
+                            System.out.println("Your card is smaller than your opponent, please wait for his choice...");
+                            // 伺服器會回傳對面的動作
+                            String answer = instream.readUTF();
+                            System.out.println(answer); // 印出對面做的動作
+                            String find_bet[] = answer.split(" ");
+                            opponent_bets = Integer.parseInt(find_bet[5]); //收集對手的賭金
+                            // 讀取 client 的動作
+                            User_input = inputReader.next();
+                            outstream.writeUTF(User_input);
+                            break;
+                        case 1:
+                            // 如果伺服器回傳 1，代表我的牌分比較大，可以先做動作
+                            System.out.println("Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)");
+                            // 讀取 client 的動作
+                            User_input = inputReader.next();
+                            outstream.writeUTF(User_input);
+                            break;
+                        default:
+                            System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
+                    }
+
+                    // 就 client 做的動作做出相應的處置
+                    if (User_input.equalsIgnoreCase("raise")) { // 選擇了加注
+                        // 詢問使用者要下注多少錢
+                        System.out.println("How much would you like to raise? (Please enter your bet)");
+                        int bet = inputReader.nextInt(); // 讀取下注金額
+                        outstream.write(bet); // 傳送下注金額給伺服器
+
+                        String follow_message = instream.readUTF();
+                        System.out.println(follow_message);
+                    }
+                    else if(User_input.equalsIgnoreCase("follow")) {
+                        outstream.write(opponent_bets);
+                    }
+
+                    card = instream.readUTF();
+                    Client2_OwnCard.owncardlist.add(card); // 加進專門存放自己的牌組的 list
+
+                    card = instream.readUTF();
+                    Client1_EnemyCard.owncardlist.add(card); //收對手的牌加進list
+                    System.out.println("get opponent " + card_count + "th card " + card);
+                    //System.out.println("turn " + card_count + " end");
+
+
+                    card_string = card_string.replaceFirst("000", Client2_OwnCard.owncardlist.get(card_count));
+                    System.out.println();
+                    score = score_counting(card_string);
+                    System.out.println("score is: " + score);
+                    outstream.writeLong(score);
                 }
             }
             catch(IOException ex){

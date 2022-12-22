@@ -308,7 +308,7 @@ class ServerThread extends Thread implements Runnable {
                                 }
                                 // 讀取他的回答
                                 decision = instream.readUTF();
-                                if (decision.equalsIgnoreCase("raise")) { // 選擇了加注
+                                if (decision.equalsIgnoreCase("follow")) { // 選擇了加注
                                     // 接收他下注的金額
                                     client2_cards.bet = instream.read();
                                     Global_cards.bet_sum += client2_cards.bet;
@@ -353,7 +353,7 @@ class ServerThread extends Thread implements Runnable {
                                 }
                                 // 讀取他的回答
                                 String decision = instream.readUTF();
-                                if (decision.equalsIgnoreCase("raise")) { // 選擇了加注
+                                if (decision.equalsIgnoreCase("follow")) { // 選擇了加注
                                     // 接收他下注的金額
                                     client1_cards.bet = instream.read();
                                     Global_cards.bet_sum += client1_cards.bet;
