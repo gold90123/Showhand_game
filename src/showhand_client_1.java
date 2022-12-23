@@ -80,9 +80,12 @@ public class showhand_client_1 extends Frame implements Runnable {
                 System.out.println("Your hole-card is: " + Client1_OwnCard.owncardlist.get(0));
                 System.out.println("Your card 1 is: " + Client1_OwnCard.owncardlist.get(1));
                 System.out.println("Your opponent's card 1 is: " + card);
+
+                // 算牌分，回傳給 server
+                // 底牌分數要最後算
                 String card_string = "000,000,000,000,000";
                 card_string = card_string.replaceFirst("000", Client1_OwnCard.owncardlist.get(1));
-                System.out.println(card_string);
+                System.out.println("Your cards: " + card_string);
                 long score = score_counting(card_string);
                 System.out.println("score is: " + score);
                 outstream.writeLong(score);
@@ -92,9 +95,9 @@ public class showhand_client_1 extends Frame implements Runnable {
                     // 顯示伺服器端的評估結果，看自己是牌分較大的人(先講話)，還是牌分較小的人(等待對手講完才可以講)
                     int smaller_or_bigger = instream.read();
 
-                    System.out.println(smaller_or_bigger);//測試用
+                    // System.out.println(smaller_or_bigger); // 測試用
 
-                    int opponent_bets = 0; //對手的賭金(follow用)
+                    long opponent_bets = 0; // 對手的賭金( follow 用 )
                     switch (smaller_or_bigger) {
                         case 0:
                             // 如果伺服器回傳 0，代表我的牌分比較小，需要等待對面做完動作，才換我動作
@@ -103,7 +106,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                             String answer = instream.readUTF();
                             System.out.println(answer); // 印出對面做的動作
                             String find_bet[] = answer.split(" ");
-                            opponent_bets = Integer.parseInt(find_bet[5]); //收集對手的賭金
+                            opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
                             // 讀取 client 的動作
                             User_input = inputReader.next();
                             outstream.writeUTF(User_input);
@@ -116,21 +119,23 @@ public class showhand_client_1 extends Frame implements Runnable {
                             outstream.writeUTF(User_input);
                             break;
                         default:
-                            System.out.println("伺服器傳送了非 0 或 1 的值，是伺服器的錯");
+                            System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
                     }
 
                     // 就 client 做的動作做出相應的處置
                     if (User_input.equalsIgnoreCase("raise")) { // 選擇了加注
                         // 詢問使用者要下注多少錢
                         System.out.println("How much would you like to raise? (Please enter your bet)");
-                        int bet = inputReader.nextInt(); // 讀取下注金額
-                        outstream.write(bet); // 傳送下注金額給伺服器
-
+                        long bet = inputReader.nextLong(); // 讀取下注金額
+                        outstream.writeLong(bet); // 傳送下注金額給伺服器
+                        // 傳送訊息叫他等待
+                        System.out.println("Please wait for your opponent's choice...");
+                        // 讀取伺服器回傳對手的動作
                         String follow_message = instream.readUTF();
                         System.out.println(follow_message);
                     }
                     else if(User_input.equalsIgnoreCase("follow")) {
-                        outstream.write(opponent_bets);
+                        outstream.writeLong(opponent_bets);
                     }
 
                     card = instream.readUTF();
@@ -138,12 +143,12 @@ public class showhand_client_1 extends Frame implements Runnable {
 
                     card = instream.readUTF();
                     Client1_EnemyCard.owncardlist.add(card); //收對手的牌加進list
-                    System.out.println("get opponent " + card_count + "th card " + card);
+                    System.out.println("get opponent's " + card_count + "th card " + card);
                     //System.out.println("turn " + card_count + " end");
 
                     // 算牌分，回傳給 server
                     card_string = card_string.replaceFirst("000", Client1_OwnCard.owncardlist.get(card_count));
-                    System.out.println(card_string);
+                    System.out.println("Your cards: " + card_string);
                     score = score_counting(card_string);
                     System.out.println("score is: " + score);
                     outstream.writeLong(score);
