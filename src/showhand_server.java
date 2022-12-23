@@ -194,11 +194,13 @@ class ServerThread extends Thread implements Runnable {
                     long score = instream.readLong();
                     switch (player) {
                         case 1:
+                            // 第一個進來的 player，就存在 client1_cards 裡
                             client1_cards.score = score; // 儲存分數
                             client1_cards.ready = true; // 代表已經儲存好了
                             System.out.println("client1 is ready");
                             break;
                         case 2:
+                            // 第二個進來的 player，就存在 client2_cards 裡
                             client2_cards.score = score; // 儲存分數
                             client2_cards.ready = true; // 代表已經儲存好了
                             System.out.println("client2 is ready");
@@ -207,28 +209,14 @@ class ServerThread extends Thread implements Runnable {
                             System.out.println("Players too much"); // 目前只支持兩人對戰
                     }
                     System.out.println("Score: " + score);
-                    /*
-                    synchronized (this) {
-                        if (!(client1_cards.ready && client2_cards.ready)) {
-                            try {
-                                System.out.println("waiting" + currentThread());
-                                this.wait();
-                                System.out.println("done waiting");
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        } else
-                            System.out.println("finish");
-                            notify();
-                    }
-                    */
+
+                    // 等待另一個線程也跑好
                     try {
                         Thread.sleep(100);
                         this.join();
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-
 
                     // 有進到下面來，表示一定是兩個 client 都 ready 了
                     // 比較牌分大小，牌分比較大的可以講話，牌分小的則是要等到對面講完話，自己才可以講
@@ -247,6 +235,7 @@ class ServerThread extends Thread implements Runnable {
                                     // 接收他下注的金額
                                     client1_cards.bet = instream.readLong();
                                     Global_cards.bet_sum += client1_cards.bet;
+                                    System.out.println("賭金加了 " + client1_cards.bet + ". 現在有: " + Global_cards.bet_sum);
                                     // 確認下注完成
                                     client1_cards.raise = true;
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌 // 等同於 raise=0
@@ -321,6 +310,7 @@ class ServerThread extends Thread implements Runnable {
                                     // 接收他下注的金額
                                     client2_cards.bet = instream.readLong();
                                     Global_cards.bet_sum += client2_cards.bet;
+                                    System.out.println("賭金加了 " + client2_cards.bet + ". 現在有: " + Global_cards.bet_sum);
                                     // 確認下注完成
                                     client2_cards.raise = true;
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
@@ -334,7 +324,7 @@ class ServerThread extends Thread implements Runnable {
                                 }
                                 break;
                         }
-                    } else if (client2_cards.score > client1_cards.score) {
+                    } else if (client1_cards.score < client2_cards.score) {
                         switch (player) {
                             case 1:
                                 outstream.write(0); // "Your card is smaller than your opponent, please wait for his choice..."
@@ -370,6 +360,7 @@ class ServerThread extends Thread implements Runnable {
                                     // 接收他下注的金額
                                     client1_cards.bet = instream.readLong();
                                     Global_cards.bet_sum += client1_cards.bet;
+                                    System.out.println("賭金加了 " + client1_cards.bet + ". 現在有: " + Global_cards.bet_sum);
                                     // 確認下注完成
                                     client1_cards.raise = true;
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
@@ -390,6 +381,7 @@ class ServerThread extends Thread implements Runnable {
                                     // 接收他下注的金額
                                     client2_cards.bet = instream.readLong();
                                     Global_cards.bet_sum += client2_cards.bet;
+                                    System.out.println("賭金加了 " + client2_cards.bet + ". 現在有: " + Global_cards.bet_sum);
                                     // 確認下注完成
                                     client2_cards.raise = true;
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
@@ -430,9 +422,11 @@ class ServerThread extends Thread implements Runnable {
                                 break;
                         }
                     }
+
                     // 直接發牌
                     outstream.writeUTF((String) my_cards.get(i)); // 發送第二張牌給自己，也就是第一張明牌
                     System.out.println("send player" + player + "'s (" + i + " -card) " + my_cards.get(i));
+
                     // 發送給 client，對手的明牌
                     outstream.writeUTF((String) opponent_cards.get(i)); // 發送對手的第一張明牌
                     System.out.println("send opponent's (" + i + " -card): " + opponent_cards.get(i));
@@ -440,8 +434,66 @@ class ServerThread extends Thread implements Runnable {
                     // 把他們的 ready 歸零
                     client1_cards.ready = false;
                     client2_cards.ready = false;
-
                 }
+
+                // 接收 client 回傳的總分 (加入底牌之後的分數)
+                long score = instream.readLong();
+                switch (player) {
+                    case 1:
+                        client1_cards.score = score; // 儲存分數
+                        client1_cards.ready = true; // 代表已經儲存好了
+                        System.out.println("client1 is ready(計算最後總分)");
+                        break;
+                    case 2:
+                        client2_cards.score = score; // 儲存分數
+                        client2_cards.ready = true; // 代表已經儲存好了
+                        System.out.println("client2 is ready(計算最後總分)");
+                        break;
+                    default:
+                        System.out.println("Players too much"); // 目前只支持兩人對戰
+                }
+                System.out.println("Score: " + score);
+
+                // 等待另一個線程也跑好
+                try {
+                    Thread.sleep(100);
+                    this.join();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+
+                // 比較分數
+                if(client1_cards.score > client2_cards.score){
+                    switch (player){
+                        case 1:
+                            outstream.write(1); // You are WINNER!!
+                            outstream.writeLong(Global_cards.bet_sum); // 回傳檯面上的所有金額給贏家
+                            System.out.println("返還 " + Global_cards.bet_sum + " 金額給贏家");
+                            break;
+                        case 2:
+                            outstream.write(0); // You lose...
+                            break;
+                        default:
+                            System.out.println("Players too much"); // 目前只支持兩人對戰
+                    }
+                }
+                else if(client1_cards.score < client2_cards.score){
+                    switch (player){
+                        case 1:
+                            outstream.write(0); // You lose...
+                            break;
+                        case 2:
+                            outstream.write(1); // You are WINNER!!
+                            outstream.writeLong(Global_cards.bet_sum); // 回傳檯面上的所有金額給贏家
+                            System.out.println("返還" + Global_cards.bet_sum + " 金額給贏家");
+                            break;
+                        default:
+                            System.out.println("Players too much"); // 目前只支持兩人對戰
+                    }
+                }
+
+                // 賭金已經發還給玩家，將檯面上的賭金清空
+                //Global_cards.bet_sum = 0;
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

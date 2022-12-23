@@ -6,6 +6,7 @@ import java.util.List;
 
 class Client2_OwnCard{
     static List<String> owncardlist = new LinkedList<String>();
+    static long my_bet = 10000; // 初始金額
 }
 class Client2_EnemyCard{
     static List<String> owncardlist = new LinkedList<String>();
@@ -17,7 +18,7 @@ public class showhand_client_2 extends Frame implements Runnable {
     static int port;
     DataOutputStream  outstream;
     DataInputStream  instream;
-    static int PLAY_NUM = 2;
+
     public static void main(String args[]) {
         //if (args.length < 2){
         //   System.out.println("USAGE: java work25_User1 [servername] [port]");
@@ -94,14 +95,12 @@ public class showhand_client_2 extends Frame implements Runnable {
                 System.out.println("score is: " + score);
                 outstream.writeLong(score);
 
-                for(int card_count = 2;card_count<=4;card_count++)
+                for(int card_count = 2; card_count <= 4; card_count++)
                 {
                     // 顯示伺服器端的評估結果，看自己是牌分較大的人(先講話)，還是牌分較小的人(等待對手講完才可以講)
                     int smaller_or_bigger = instream.read();
 
-                    // System.out.println(smaller_or_bigger); // 測試用
-
-                    long opponent_bets = 0;// 對手的賭金( follow 用 )
+                    long opponent_bets = 0; // 對手的賭金( follow 用 )
                     switch (smaller_or_bigger) {
                         case 0:
                             // 如果伺服器回傳 0，代表我的牌分比較小，需要等待對面做完動作，才換我動作
@@ -127,10 +126,12 @@ public class showhand_client_2 extends Frame implements Runnable {
                     }
 
                     // 就 client 做的動作做出相應的處置
+                    long bet = 0;
                     if (User_input.equalsIgnoreCase("raise")) { // 選擇了加注
                         // 詢問使用者要下注多少錢
                         System.out.println("How much would you like to raise? (Please enter your bet)");
-                        long bet = inputReader.nextInt(); // 讀取下注金額
+                        bet = inputReader.nextLong(); // 讀取下注金額
+                        Client2_OwnCard.my_bet -= bet; // 扣掉自己的錢
                         outstream.writeLong(bet); // 傳送下注金額給伺服器
                         // 傳送訊息叫他等待
                         System.out.println("Please wait for your opponent's choice...");
@@ -139,6 +140,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                         System.out.println(follow_message);
                     }
                     else if(User_input.equalsIgnoreCase("follow")) {
+                        Client2_OwnCard.my_bet -= opponent_bets; // 扣掉自己的錢
                         outstream.writeLong(opponent_bets);
                     }
 
@@ -146,16 +148,45 @@ public class showhand_client_2 extends Frame implements Runnable {
                     Client2_OwnCard.owncardlist.add(card); // 加進專門存放自己的牌組的 list
 
                     card = instream.readUTF();
-                    Client1_EnemyCard.owncardlist.add(card); // 收對手的牌加進list
+                    Client2_EnemyCard.owncardlist.add(card); // 收對手的牌加進list
                     System.out.println("get opponent's " + card_count + "th card " + card);
                     //System.out.println("turn " + card_count + " end");
 
-
+                    // 算牌分，回傳給 server
                     card_string = card_string.replaceFirst("000", Client2_OwnCard.owncardlist.get(card_count));
                     System.out.println("Your cards: " + card_string);
                     score = score_counting(card_string);
                     System.out.println("score is: " + score);
                     outstream.writeLong(score);
+                }
+
+                // 回傳自己整副牌的分數
+                card_string = card_string.replaceFirst("000", Client2_OwnCard.owncardlist.get(0)); // 加入底牌
+                System.out.println("Your cards: " + card_string);
+                score = score_counting(card_string);
+                System.out.println("score is: " + score);
+                outstream.writeLong(score);
+
+                // 等待伺服器回傳勝負結果
+                int win_or_lose = instream.read();
+                switch (win_or_lose){
+                    case 0:
+                        // 如果伺服器回傳 0，代表我輸了
+                        System.out.println("You lose...");
+                        System.out.println("You only left " + Client2_OwnCard.my_bet + " dollar.");
+                        break;
+                    case 1:
+                        // 如果伺服器回傳 1，代表我贏了
+                        System.out.println("You are WINNER!!");
+                        // 接收伺服器回傳的檯面上的金額
+                        long money = instream.readLong();
+                        System.out.println("原本剩餘金額" + Client2_OwnCard.my_bet);
+                        System.out.println("收到金額: " + money);
+                        Client2_OwnCard.my_bet += money;
+                        System.out.println("Now you have " + Client2_OwnCard.my_bet + " dollar.");
+                        break;
+                    default:
+                        System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
                 }
             }
             catch(IOException ex){
@@ -195,18 +226,18 @@ public class showhand_client_2 extends Frame implements Runnable {
             default : return 0;
         }
     }
-    public static long score_counting(String cards)   //判定各個牌型並計算牌分，輸入字串(ex."C03,C12,C07,000,000")傳回一個long型態的牌分
+    public static long score_counting(String cards)  // 判定各個牌型並計算牌分，輸入字串(ex."C03,C12,C07,000,000")傳回一個long型態的牌分
     {
-        cards = sort_card(cards);//排序手牌，傳回如輸入格式的字串
+        cards = sort_card(cards); // 排序手牌，傳回如輸入格式的字串
         String[] card = cards.split(",");
         long card_score = 0;
         int i;
         int card_type = 0;
 
 
-        boolean straight_flush = false; //同花順
-        boolean flush = true; //同花
-        boolean straight = true; //順子
+        boolean straight_flush = false; // 同花順
+        boolean flush = true; // 同花
+        boolean straight = true; // 順子
         int[] num_sort = new int[5];
         for(i=0;i<5;i++) {
             num_sort[i] = point(card[i]);
@@ -224,7 +255,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                 flush = false;
             }
         }
-        if(straight) {  //確定為順子時
+        if(straight) {  // 確定為順子時
             card_score += Math.pow(10,5)*num_sort[4];
             for(i = 0;i<5;i++) {
                 if(point(card[i]) == num_sort[4]) {
@@ -232,11 +263,11 @@ public class showhand_client_2 extends Frame implements Runnable {
                 }
             }
         }
-        if (flush) { //確定為同花時
+        if (flush) { // 確定為同花時
             card_score += Math.pow(10, 6)*num_sort[4];
             card_score+=color_point(card[0]);
         }
-        if(straight && flush) {  //如果為同花順
+        if(straight && flush) {  // 如果為同花順
             straight_flush = true;
             flush = false;
             card_score += Math.pow(10, 9)*point(card[4]);
@@ -245,15 +276,15 @@ public class showhand_client_2 extends Frame implements Runnable {
 
 
 
-        boolean four_of_a_kind = false; //鐵支
-        boolean full_house = false;//葫蘆
-        boolean three_of_a_kind = false;//三條
-        int pair_count = 0; //計算坯的數量，1為胚，2為兔胚
+        boolean four_of_a_kind = false; // 鐵支
+        boolean full_house = false;// 葫蘆
+        boolean three_of_a_kind = false;// 三條
+        int pair_count = 0; // 計算坯的數量，1為胚，2為兔胚
         List count_repeat = new ArrayList();
         for(i=0;i<5;i++) {
             count_repeat.add(point(card[i]));
         }
-        for(i = 2;i<=14;i++) //將數字頻率記錄成list
+        for(i = 2;i<=14;i++) // 將數字頻率記錄成list
         {
             switch (Collections.frequency(count_repeat, i))
             {
@@ -268,13 +299,13 @@ public class showhand_client_2 extends Frame implements Runnable {
                 case 2 :
                     pair_count += 1;
                     card_score += 100 * i;
-                    //System.out.println(i);
+                    // System.out.println(i);
                     if(pair_count == 2) {
                         card_score -= i*100;
                         long tmp = card_score%1000/100;
                         card_score += Math.max(tmp, i)*100;
                         card_score -= tmp*100;
-                        //card_score += 2000;
+                        // card_score += 2000;
                     }
                     break;
             }
@@ -288,14 +319,14 @@ public class showhand_client_2 extends Frame implements Runnable {
 
         if(pair_count >= 0) {
             for(i = 0;i < 5;i++) {
-                //System.out.println(color_point(card[i]) + "" + point(card[i]));
+                // System.out.println(color_point(card[i]) + "" + point(card[i]));
                 if(point(card[i]) == card_score/100 && color_point(card[i]) == 4) {
                     card_score += 4;
                 }
             }
         }
 
-        if(card_score == 0) { //如果不符合上述牌型，即為散牌
+        if(card_score == 0) { // 如果不符合上述牌型，即為散牌
             int tmp_max = 0,tmp_max_pos = 0;
             for(i = 0;i < 5;i++) {
                 if(point(card[i]) > tmp_max) {
