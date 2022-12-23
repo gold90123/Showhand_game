@@ -207,7 +207,11 @@ class ServerThread extends Thread implements Runnable {
                             System.out.println("Players too much"); // 目前只支持兩人對戰
                     }
                     System.out.println("Score: " + score);
-
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     // 偵測是否兩個 client 都已經傳送完分數，當 client1 及 client2 都為 true，才會跳脫迴圈
                     while (!client1_cards.ready || !client2_cards.ready) {
                         // 需要 sleep()，不然會永遠卡在迴圈中
