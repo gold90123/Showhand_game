@@ -207,20 +207,28 @@ class ServerThread extends Thread implements Runnable {
                             System.out.println("Players too much"); // 目前只支持兩人對戰
                     }
                     System.out.println("Score: " + score);
+                    /*
+                    synchronized (this) {
+                        if (!(client1_cards.ready && client2_cards.ready)) {
+                            try {
+                                System.out.println("waiting" + currentThread());
+                                this.wait();
+                                System.out.println("done waiting");
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        } else
+                            System.out.println("finish");
+                            notify();
+                    }
+                    */
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(100);
+                        this.join();
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    // 偵測是否兩個 client 都已經傳送完分數，當 client1 及 client2 都為 true，才會跳脫迴圈
-                    while (!client1_cards.ready || !client2_cards.ready) {
-                        // 需要 sleep()，不然會永遠卡在迴圈中
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+
 
                     // 有進到下面來，表示一定是兩個 client 都 ready 了
                     // 比較牌分大小，牌分比較大的可以講話，牌分小的則是要等到對面講完話，自己才可以講
