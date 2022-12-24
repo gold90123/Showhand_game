@@ -6,6 +6,7 @@ import java.util.concurrent.CountDownLatch;
 class Global_cards{
     static List<String> cards = new LinkedList<String>(); // 記住整副撲克牌
     static long bet_sum = 0;
+    static final Object lock = new Object();
 }
 
 class Global_player{
@@ -216,30 +217,18 @@ class ServerThread extends Thread implements Runnable {
                     System.out.println("Score: " + score);
 
                     // 等待另一個線程也跑好
-
-                    while (!(client1_cards.ready == i && client2_cards.ready == i)) {
-                        System.out.println(client1_cards.ready +" "+ client2_cards.ready);
-                        try{
-                            if(client1_cards.ready == i && client2_cards.ready == i) break;
-                            else Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    /*
-                    synchronized (lock) {
-                        while (!(client1_cards.ready && client2_cards.ready)) {
+                    synchronized (Global_cards.lock){
+                        if (!(client1_cards.ready == i && client2_cards.ready == i)) {
+                            System.out.println(client1_cards.ready +" "+ client2_cards.ready);
                             try {
-                                Thread.sleep(300);
-                                lock.wait();
+                                Global_cards.lock.wait();
                             } catch (InterruptedException e) {
                                 throw new RuntimeException(e);
                             }
+                        }else{
+                            Global_cards.lock.notifyAll();
                         }
-                        lock.notifyAll();
                     }
-                    */
-
 
                     // 有進到下面來，表示一定是兩個 client 都 ready 了
                     // 比較牌分大小，牌分比較大的可以講話，牌分小的則是要等到對面講完話，自己才可以講
@@ -480,16 +469,18 @@ class ServerThread extends Thread implements Runnable {
                 System.out.println("Score: " + score);
 
                 // 等待另一個線程也跑好
-                while (!(client1_cards.ready == 5 && client2_cards.ready == 5)) {
-                    System.out.println(client1_cards.ready +" "+ client2_cards.ready);
-                    try{
-                        if(client1_cards.ready == 5 && client2_cards.ready == 5) break;
-                        else Thread.sleep(200);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+                synchronized (Global_cards.lock){
+                    if (!(client1_cards.ready == 5 && client2_cards.ready == 5)) {
+                        System.out.println(client1_cards.ready +" "+ client2_cards.ready);
+                        try {
+                            Global_cards.lock.wait();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }else{
+                        Global_cards.lock.notifyAll();
                     }
                 }
-
 
                 // 比較分數
                 if(client1_cards.score > client2_cards.score){
