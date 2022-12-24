@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 class Global_cards{
     static List<String> cards = new LinkedList<String>(); // 記住整副撲克牌
@@ -14,7 +15,7 @@ class Global_player{
 class client1_cards{
     static List<String> cards = new LinkedList<String>(); // 記住玩家 1 的手牌
     static long score = 0; // 記住玩家 1 的分數
-    static boolean ready = false; // 記住玩家 1 是否已回傳分數
+    static int ready = 0; // 記住玩家 1 是否已回傳分數
     static boolean raise = false; // 加注
     static boolean pass = false; // 過牌
     static boolean drop = false; // 棄牌
@@ -26,7 +27,7 @@ class client1_cards{
 class client2_cards{
     static List<String> cards = new LinkedList<String>(); // 記住玩家 2 的手牌
     static long score = 0; // 記住玩家 2 的分數
-    static boolean ready = false; // 記住玩家 2 是否已回傳分數
+    static int ready = 0; // 記住玩家 2 是否已回傳分數
     static boolean raise = false; // 加注
     static boolean pass = false; // 過牌
     static boolean drop = false; // 棄牌
@@ -46,6 +47,7 @@ public class showhand_server {
     private static int port;
     private Hashtable ht = new Hashtable();
     Socket socket;
+
 
     public showhand_server() throws IOException
     {
@@ -139,6 +141,7 @@ class ServerThread extends Thread implements Runnable {
     private Socket socket;
     private Hashtable ht;
     private int player;
+    static Object lock = new Object();
 
     public ServerThread(Socket socket, Hashtable ht, int player) {
         this.socket = socket;
@@ -149,6 +152,7 @@ class ServerThread extends Thread implements Runnable {
     public void run() {
         DataOutputStream outstream;
         DataInputStream instream;
+
         try {
             outstream = new DataOutputStream(socket.getOutputStream());
             instream = new DataInputStream(socket.getInputStream());
@@ -189,6 +193,7 @@ class ServerThread extends Thread implements Runnable {
                 outstream.writeUTF((String) opponent_cards.get(1)); // 發送對手的第一張明牌
                 System.out.println("send opponent's (first-card): " + opponent_cards.get(1));
 
+
                 for (int i = 2; i < 5; i++) {
                     // 接收 client 算好的牌分，並且紀錄好
                     long score = instream.readLong();
@@ -196,13 +201,13 @@ class ServerThread extends Thread implements Runnable {
                         case 1:
                             // 第一個進來的 player，就存在 client1_cards 裡
                             client1_cards.score = score; // 儲存分數
-                            client1_cards.ready = true; // 代表已經儲存好了
+                            client1_cards.ready = i; // 代表已經儲存好了
                             System.out.println("client1 is ready");
                             break;
                         case 2:
                             // 第二個進來的 player，就存在 client2_cards 裡
                             client2_cards.score = score; // 儲存分數
-                            client2_cards.ready = true; // 代表已經儲存好了
+                            client2_cards.ready = i; // 代表已經儲存好了
                             System.out.println("client2 is ready");
                             break;
                         default:
@@ -211,12 +216,30 @@ class ServerThread extends Thread implements Runnable {
                     System.out.println("Score: " + score);
 
                     // 等待另一個線程也跑好
-                    try {
-                        Thread.sleep(100);
-                        this.join();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+
+                    while (!(client1_cards.ready == i && client2_cards.ready == i)) {
+                        System.out.println(client1_cards.ready +" "+ client2_cards.ready);
+                        try{
+                            if(client1_cards.ready == i && client2_cards.ready == i) break;
+                            else Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
+                    /*
+                    synchronized (lock) {
+                        while (!(client1_cards.ready && client2_cards.ready)) {
+                            try {
+                                Thread.sleep(300);
+                                lock.wait();
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        lock.notifyAll();
+                    }
+                    */
+
 
                     // 有進到下面來，表示一定是兩個 client 都 ready 了
                     // 比較牌分大小，牌分比較大的可以講話，牌分小的則是要等到對面講完話，自己才可以講
@@ -432,21 +455,23 @@ class ServerThread extends Thread implements Runnable {
                     System.out.println("send opponent's (" + i + " -card): " + opponent_cards.get(i));
 
                     // 把他們的 ready 歸零
-                    client1_cards.ready = false;
-                    client2_cards.ready = false;
+                    //client1_cards.ready = false;
+                    //client2_cards.ready = false;
                 }
+
 
                 // 接收 client 回傳的總分 (加入底牌之後的分數)
                 long score = instream.readLong();
+
                 switch (player) {
                     case 1:
                         client1_cards.score = score; // 儲存分數
-                        client1_cards.ready = true; // 代表已經儲存好了
+                        client1_cards.ready = 5; // 代表已經儲存好了
                         System.out.println("client1 is ready(計算最後總分)");
                         break;
                     case 2:
                         client2_cards.score = score; // 儲存分數
-                        client2_cards.ready = true; // 代表已經儲存好了
+                        client2_cards.ready = 5; // 代表已經儲存好了
                         System.out.println("client2 is ready(計算最後總分)");
                         break;
                     default:
@@ -455,12 +480,16 @@ class ServerThread extends Thread implements Runnable {
                 System.out.println("Score: " + score);
 
                 // 等待另一個線程也跑好
-                try {
-                    Thread.sleep(100);
-                    this.join();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                while (!(client1_cards.ready == 5 && client2_cards.ready == 5)) {
+                    System.out.println(client1_cards.ready +" "+ client2_cards.ready);
+                    try{
+                        if(client1_cards.ready == 5 && client2_cards.ready == 5) break;
+                        else Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+
 
                 // 比較分數
                 if(client1_cards.score > client2_cards.score){
