@@ -55,20 +55,19 @@ public class showhand_client_2 extends Frame implements Runnable {
     {
         while(true){
             try{
-                // 接收問題，並回傳 id
-                boolean init = false;
-                // 接收問題，並回傳 id
-                String card = ""; //所有收到的牌都會先是這個
-                String User_input = ""; //使用者輸入操作
-                Scanner inputReader = new Scanner(System.in);
-                if (!init) {
-                    String question = instream.readUTF();
-                    System.out.println(question);
-                    inputReader = new Scanner(System.in);
-                    User_input = inputReader.next();
-                    outstream.writeUTF(User_input);
+                // 把自己跟敵人的牌庫都先清空
+                Client2_OwnCard.owncardlist.clear();
+                Client2_EnemyCard.owncardlist.clear();
 
-                }
+                String card = ""; // 所有收到的牌都會先是這個
+                String User_input = ""; // 使用者輸入操作
+
+                // 接收問題，並回傳 id
+                Scanner inputReader = new Scanner(System.in); // 創建 scanner
+                String question = instream.readUTF(); // 接收伺服器的問題
+                System.out.println(question); // 印出問題
+                User_input = inputReader.next(); // 讀取使用者的回答
+                outstream.writeUTF(User_input); // 把使用者的回答回傳給伺服器
 
                 // 接收第一張(底牌 hole-card)
                 card = instream.readUTF();
@@ -173,14 +172,14 @@ public class showhand_client_2 extends Frame implements Runnable {
                     case 0:
                         // 如果伺服器回傳 0，代表我輸了
                         System.out.println("You lose...");
-                        System.out.println("You only left " + Client2_OwnCard.my_bet + " dollar.");
+                        System.out.println("You only left: " + Client2_OwnCard.my_bet + " dollar.");
                         break;
                     case 1:
                         // 如果伺服器回傳 1，代表我贏了
                         System.out.println("You are WINNER!!");
                         // 接收伺服器回傳的檯面上的金額
                         long money = instream.readLong();
-                        System.out.println("原本剩餘金額" + Client2_OwnCard.my_bet);
+                        System.out.println("原本剩餘金額: " + Client2_OwnCard.my_bet);
                         System.out.println("收到金額: " + money);
                         Client2_OwnCard.my_bet += money;
                         System.out.println("Now you have " + Client2_OwnCard.my_bet + " dollar.");

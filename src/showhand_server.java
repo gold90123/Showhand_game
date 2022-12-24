@@ -1,12 +1,11 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 
 class Global_cards{
     static List<String> cards = new LinkedList<String>(); // 記住整副撲克牌
-    static long bet_sum = 0;
-    static final Object lock = new Object();
+    static long bet_sum = 0; // 記住檯面上的總額
+    static final Object lock = new Object(); // 一個可以讓 thread 持有的鎖，讓 thread 可以互相等待
 }
 
 class Global_player{
@@ -21,7 +20,8 @@ class client1_cards{
     static boolean pass = false; // 過牌
     static boolean drop = false; // 棄牌
     static boolean showhand = false; // 梭哈
-    static long bet = 0; // 玩家 2 下注的金額
+    static long bet = 0; // 玩家 1 下注的金額
+    static boolean shuffle_yet_or_not_yet = false; // 洗牌以及發牌了沒有，false = 還沒、true = 洗了
 
 }
 
@@ -34,6 +34,7 @@ class client2_cards{
     static boolean drop = false; // 棄牌
     static boolean showhand = false; // 梭哈
     static long bet = 0; // 玩家 2 下注的金額
+    static boolean shuffle_yet_or_not_yet = false; // 洗牌以及發牌了沒有，false = 還沒、true = 洗了
 }
 
 public class showhand_server {
@@ -46,14 +47,13 @@ public class showhand_server {
     // 開啟伺服器，使用 TCP 來連接
     private static ServerSocket SSocket;
     private static int port;
-    private Hashtable ht = new Hashtable();
     Socket socket;
 
 
     public showhand_server() throws IOException
     {
         // 開啟伺服器前，先洗牌
-        initCards();
+        // initCards();
         // 開啟 socket，接收 client
         try {
             SSocket = new ServerSocket(port);
@@ -69,42 +69,10 @@ public class showhand_server {
                 System.out.println("connected from Client " + socket.getInetAddress().getHostAddress());
                 DataOutputStream outstream = new DataOutputStream(socket.getOutputStream());
 
-                // 直接分配每個 client 5 張牌
-                switch(player){
-                    case 1:
-                        // 顯示玩家的牌
-                        System.out.print("Player1: ");
-                        for(int i = 0; i < 5; i++){
-                            client1_cards.cards.add(Global_cards.cards.get(0));
-                            Global_cards.cards.remove(0);
-                            // 顯示玩家的牌
-                            System.out.print(client1_cards.cards.get(i));
-                        }
-                        // 顯示玩家的牌
-                        System.out.print("\n");
-                        break;
-                    case 2:
-                        // 顯示玩家的牌
-                        System.out.print("Player2: ");
-                        for(int i = 0; i < 5; i++){
-                            client2_cards.cards.add(Global_cards.cards.get(0));
-                            Global_cards.cards.remove(0);
-                            // 顯示玩家的牌
-                            System.out.print(client2_cards.cards.get(i));
-                        }
-                        // 顯示玩家的牌
-                        System.out.print("\n");
-                        break;
-                    default:
-                        System.out.println("Players are too much!!"); // 目前只支持雙人對戰
-                }
 
-                // 把該 client 的資訊放進 HashTable
-                ht.put(socket, outstream);
                 // 為該 client 開啟一個 thread
-                Thread thread = new Thread(new ServerThread(socket, ht, player));
+                Thread thread = new Thread(new ServerThread(socket, player));
                 thread.start();
-                System.out.println("player: " + player);
             }
         }
         catch (IOException ex) {
@@ -112,8 +80,10 @@ public class showhand_server {
         }
     }
 
-    // 初始化牌組 (發牌一次就是發一張，如果是第一輪，就發送兩次)
-    public void initCards(){
+    // 初始化牌組
+    public static void initCards(){
+        // 先清空整個 linkedList
+        Global_cards.cards.clear();
         // 首先放入 52 張撲克牌
         for(int i = 0; i < suits.length; i++){
             for(int j = 0; j < values.length; j++){
@@ -140,14 +110,12 @@ public class showhand_server {
 
 class ServerThread extends Thread implements Runnable {
     private Socket socket;
-    private Hashtable ht;
     private int player;
     static Object lock = new Object();
 
-    public ServerThread(Socket socket, Hashtable ht, int player) {
+    public ServerThread(Socket socket, int player) {
         this.socket = socket;
-        this.ht = ht;
-        this.player = player;
+        this.player = player; // 儲存現在進來的是 player 1 還是 player 2
     }
 
     public void run() {
@@ -155,9 +123,64 @@ class ServerThread extends Thread implements Runnable {
         DataInputStream instream;
 
         try {
+            // 建置輸出串流以及輸入串流
             outstream = new DataOutputStream(socket.getOutputStream());
             instream = new DataInputStream(socket.getInputStream());
+
+            // 進入遊戲環節
             while (true) {
+                // 洗牌，只需要洗一次
+                switch (player){
+                    case 1:
+                        // 要及早把 client2_cards.shuffle_yet_or_not_yet 設成 false
+                        client2_cards.shuffle_yet_or_not_yet = false;
+                        // 先把 client1_cards.cards 的牌清空
+                        client1_cards.cards.clear();
+                        // 統一由 client 1 來洗牌，因為每一輪遊戲，只需要洗一次牌
+                        showhand_server.initCards();
+                        // 從 Global_cards 將牌分配給 client1_cards
+                        System.out.print("Player1: ");
+                        for(int i = 0; i < 5; i++){
+                            client1_cards.cards.add(Global_cards.cards.get(0));
+                            Global_cards.cards.remove(0); // 發出去了，就把該牌移除
+                            // 顯示玩家的牌
+                            System.out.print(client1_cards.cards.get(i) + " ");
+                        }
+                        client1_cards.shuffle_yet_or_not_yet = true; // 標示已經洗好牌了，放在那麼後面是因為避免跟 client 2 發同一張牌
+                        System.out.print("\n");
+                        break;
+                    case 2:
+                        // 先把 client2_cards.cards 的牌清空
+                        client2_cards.cards.clear();
+                        // 需要等待 client 1 洗完牌才可以發牌給 client 2
+                        while(!client1_cards.shuffle_yet_or_not_yet){
+                            // 最好加一個 sleep，讓他不要跑太快
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        // 跳脫 while loop，表示 client1 洗完牌了也發完牌了
+                        // 從 Global_cards 將牌分配給 client2_cards
+                        System.out.print("Player2: ");
+                        for(int i = 0; i < 5; i++){
+                            client2_cards.cards.add(Global_cards.cards.get(0));
+                            Global_cards.cards.remove(0);
+                            // 顯示玩家的牌
+                            System.out.print(client2_cards.cards.get(i) + " ");
+                        }
+                        // 把 client1_cards.shuffle_yet_or_not_yet 歸零
+                        client1_cards.shuffle_yet_or_not_yet = false;
+                        // 把自己的 shuffle_yet_or_not_yet 設為 true
+                        client2_cards.shuffle_yet_or_not_yet = true;
+                        // 顯示玩家的牌
+                        System.out.print("\n");
+                        break;
+                    default:
+                        System.out.println("Players are too much!!"); // 目前只支持雙人對戰
+                }
+
                 // 詢問 id
                 String ask_id = "Hello, please input your id in below.";
                 outstream.writeUTF(ask_id);
@@ -170,14 +193,28 @@ class ServerThread extends Thread implements Runnable {
                 LinkedList my_cards = new LinkedList(); // 負責存自己的明牌
                 LinkedList opponent_cards = new LinkedList(); // 負責存對手的明牌
 
-                // 複製牌型
+                // 如果 client 2 還沒有發好牌，就停在這裡等他
+                while(!client2_cards.shuffle_yet_or_not_yet){
+                    // 最好加一個 sleep，讓他不要跑太快
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                // client 2 的牌也發好了之後，才可以下來，防止 client 1 衝太快，拿到空的 opponent_cards
                 switch (player) {
                     case 1:
+                        // 如果是 player 1，自己的牌就拿 client 1 那副牌
                         my_cards = (LinkedList) ((LinkedList) client1_cards.cards).clone();
+                        // 代表敵人的牌就拿 client 2 那副牌
                         opponent_cards = (LinkedList) ((LinkedList) client2_cards.cards).clone();
                         break;
                     case 2:
+                        // 如果是 player 2，就拿 client 2 那副牌
                         my_cards = (LinkedList) ((LinkedList) client2_cards.cards).clone();
+                        // 代表敵人的牌就拿 client 1 那副牌
                         opponent_cards = (LinkedList) ((LinkedList) client1_cards.cards).clone();
                         break;
                     default:
@@ -219,14 +256,16 @@ class ServerThread extends Thread implements Runnable {
                     // 等待另一個線程也跑好
                     synchronized (Global_cards.lock){
                         if (!(client1_cards.ready == i && client2_cards.ready == i)) {
-                            System.out.println(client1_cards.ready +" "+ client2_cards.ready);
+                            // 如果有其中一個 client 沒有跑好，就進來等待
                             try {
                                 Global_cards.lock.wait();
                             } catch (InterruptedException e) {
                                 throw new RuntimeException(e);
                             }
-                        }else{
-                            Global_cards.lock.notifyAll();
+                        }
+                        else{
+                            // 如果進到這裡，代表兩個 client 都已經 ready
+                            Global_cards.lock.notifyAll(); // 使用 notifyAll 喚醒正在 wait 的執行緒
                         }
                     }
 
@@ -259,7 +298,7 @@ class ServerThread extends Thread implements Runnable {
                                 } else {
                                     System.out.println("沒有回答要做甚麼動作，或回答錯誤");
                                 }
-                                // 等待對手做出動作
+                                // 使用 while loop，等待另一位使用者作出決定
                                 while (true) {
                                     // 最好加一個 sleep，讓他不要跑太快
                                     try {
@@ -290,6 +329,7 @@ class ServerThread extends Thread implements Runnable {
                             case 2:
                                 outstream.write(0); // "Your card is smaller than your opponent, please wait for his choice..."
                                 System.out.println("已叫牌分較小的使用者等待 talker");
+                                // 使用 while loop，等待另一位使用者作出決定
                                 while (true) {
                                     // 最好加一個 sleep，讓他不要跑太快
                                     try {
@@ -304,7 +344,7 @@ class ServerThread extends Thread implements Runnable {
                                         break;
                                     } else if (client1_cards.pass) {
                                         outstream.writeUTF("Your opponent chose to pass! do you want to raise or pass or drop or even showhand.(Please enter your decision)");
-                                        client1_cards.pass = false;
+                                        client1_cards.pass = false; // 幫助歸零
                                         break;
                                     } else if (client1_cards.drop) {
                                         outstream.writeUTF("Your opponent chose to drop! do you want to raise or pass or drop or even showhand.(Please enter your decision)");
@@ -340,6 +380,7 @@ class ServerThread extends Thread implements Runnable {
                         switch (player) {
                             case 1:
                                 outstream.write(0); // "Your card is smaller than your opponent, please wait for his choice..."
+                                // 使用 while loop，等待另一位使用者作出決定
                                 while (true) {
                                     // 最好加一個 sleep，讓他不要跑太快
                                     try {
@@ -405,6 +446,7 @@ class ServerThread extends Thread implements Runnable {
                                 } else {
                                     System.out.println("沒有回答要做甚麼動作，或回答錯誤");
                                 }
+                                // 使用 while loop，等待另一位使用者作出決定
                                 while(true){
                                     // 最好加一個 sleep，讓他不要跑太快
                                     try {
@@ -436,22 +478,19 @@ class ServerThread extends Thread implements Runnable {
                     }
 
                     // 直接發牌
-                    outstream.writeUTF((String) my_cards.get(i)); // 發送第二張牌給自己，也就是第一張明牌
+                    outstream.writeUTF((String) my_cards.get(i)); // 發送第 i 張牌給自己，也就是第 i + 1 張明牌
                     System.out.println("send player" + player + "'s (" + i + " -card) " + my_cards.get(i));
 
                     // 發送給 client，對手的明牌
-                    outstream.writeUTF((String) opponent_cards.get(i)); // 發送對手的第一張明牌
+                    outstream.writeUTF((String) opponent_cards.get(i)); // 發送對手的第 i 張牌
                     System.out.println("send opponent's (" + i + " -card): " + opponent_cards.get(i));
 
-                    // 把他們的 ready 歸零
-                    //client1_cards.ready = false;
-                    //client2_cards.ready = false;
                 }
 
 
                 // 接收 client 回傳的總分 (加入底牌之後的分數)
                 long score = instream.readLong();
-
+                // 判別現在正在執行的是 client1 還是 client2
                 switch (player) {
                     case 1:
                         client1_cards.score = score; // 儲存分數
@@ -471,6 +510,7 @@ class ServerThread extends Thread implements Runnable {
                 // 等待另一個線程也跑好
                 synchronized (Global_cards.lock){
                     if (!(client1_cards.ready == 5 && client2_cards.ready == 5)) {
+                        // 如果有其中一個 client 沒有跑好，就進來等待
                         System.out.println(client1_cards.ready +" "+ client2_cards.ready);
                         try {
                             Global_cards.lock.wait();
@@ -478,7 +518,8 @@ class ServerThread extends Thread implements Runnable {
                             throw new RuntimeException(e);
                         }
                     }else{
-                        Global_cards.lock.notifyAll();
+                        // 如果進到這裡，代表兩個 client 都已經 ready
+                        Global_cards.lock.notifyAll(); // 使用 notifyAll 喚醒正在 wait 的執行緒
                     }
                 }
 
@@ -506,14 +547,13 @@ class ServerThread extends Thread implements Runnable {
                             outstream.write(1); // You are WINNER!!
                             outstream.writeLong(Global_cards.bet_sum); // 回傳檯面上的所有金額給贏家
                             System.out.println("返還" + Global_cards.bet_sum + " 金額給贏家");
+                            // 賭金已經發還給玩家，將檯面上的賭金清空
+                            Global_cards.bet_sum = 0;
                             break;
                         default:
                             System.out.println("Players too much"); // 目前只支持兩人對戰
                     }
                 }
-
-                // 賭金已經發還給玩家，將檯面上的賭金清空
-                //Global_cards.bet_sum = 0;
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
