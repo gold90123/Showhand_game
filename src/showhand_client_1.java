@@ -91,7 +91,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                 System.out.println("score is: " + score);
                 outstream.writeLong(score);
 
-                for(int card_count = 2; card_count <= 4; card_count++) {
+                for(int card_count = 2; card_count < 6; card_count++) {
                     // 顯示伺服器端的評估結果，看自己是牌分較大的人(先講話)，還是牌分較小的人(等待對手講完才可以講)
                     int smaller_or_bigger = instream.read();
 
@@ -103,7 +103,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                             // 伺服器會回傳對面的動作
                             String answer = instream.readUTF();
                             System.out.println(answer); // 印出對面做的動作
-                            String find_bet[] = answer.split(" ");
+                            String[] find_bet = answer.split(" ");
                             opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
                             // 讀取 client 的動作
                             User_input = inputReader.next();
@@ -139,27 +139,29 @@ public class showhand_client_1 extends Frame implements Runnable {
                         Client1_OwnCard.my_bet -= opponent_bets; // 扣掉自己的錢
                     }
 
-                    card = instream.readUTF();
-                    Client1_OwnCard.owncardlist.add(card); // 加進專門存放自己的牌組的 list
+                    // 最後一圈迴圈只是用來下注，不需要收牌
+                    if(card_count < 5){
+                        card = instream.readUTF();
+                        Client1_OwnCard.owncardlist.add(card); // 加進專門存放自己的牌組的 list
+                        card_string = card_string.replaceFirst("000", Client1_OwnCard.owncardlist.get(card_count));  // 把拿到的卡加進 card_string，這樣才可以算分數
+                        System.out.println("Your cards: " + card_string); // 顯示自己的牌
 
-                    card = instream.readUTF();
-                    Client1_EnemyCard.owncardlist.add(card); // 收對手的牌加進list
-                    System.out.println("get opponent's " + card_count + "th card " + card);
-                    //System.out.println("turn " + card_count + " end");
+                        card = instream.readUTF();
+                        Client1_EnemyCard.owncardlist.add(card); // 收對手的牌加進list
+                        System.out.println("get opponent's " + card_count + "th card " + card);
 
-                    // 算牌分，回傳給 server
-                    card_string = card_string.replaceFirst("000", Client1_OwnCard.owncardlist.get(card_count));
-                    System.out.println("Your cards: " + card_string);
-                    score = score_counting(card_string);
-                    System.out.println("score is: " + score);
-                    outstream.writeLong(score);
+                        // 算牌分，回傳給 server
+                        score = score_counting(card_string);
+                        System.out.println("score is: " + score);
+                        outstream.writeLong(score);
+                    }
                 }
 
                 // 回傳自己整副牌的分數
                 card_string = card_string.replaceFirst("000", Client1_OwnCard.owncardlist.get(0)); // 加入底牌
                 System.out.println("Your cards: " + card_string);
                 score = score_counting(card_string);
-                System.out.println("score is: " + score);
+                System.out.println("Final score is: " + score);
                 outstream.writeLong(score);
 
                 // 等待伺服器回傳勝負結果

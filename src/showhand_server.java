@@ -231,10 +231,11 @@ class ServerThread extends Thread implements Runnable {
                 outstream.writeUTF((String) opponent_cards.get(1)); // 發送對手的第一張明牌
                 System.out.println("send opponent's (first-card): " + opponent_cards.get(1));
 
-
-                for (int i = 2; i < 5; i++) {
+                // 總共可以下注次數為 4 次
+                for (int i = 2; i < 6; i++) {
                     // 接收 client 算好的牌分，並且紀錄好
                     long score = instream.readLong();
+                    System.out.println("接收到分數:" + score);
                     switch (player) {
                         case 1:
                             // 第一個進來的 player，就存在 client1_cards 裡
@@ -278,7 +279,6 @@ class ServerThread extends Thread implements Runnable {
                         switch (player) {
                             case 1:
                                 outstream.write(1); // Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)
-                                System.out.println("已傳送問題(詢問 talker 下一步動作)");
                                 // 等待點數較大的人的回答
                                 String decision = instream.readUTF();
                                 System.out.println("已接收到 talker 的回答");
@@ -476,15 +476,16 @@ class ServerThread extends Thread implements Runnable {
                                 break;
                         }
                     }
+                    // 最後一圈迴圈不需要發牌，只需要收分數，然後讓 client 下注
+                    if(i < 5){
+                        // 直接發牌
+                        outstream.writeUTF((String) my_cards.get(i)); // 發送第 i 張牌給自己，也就是第 i + 1 張明牌
+                        System.out.println("send player" + player + "'s (" + i + " -card) " + my_cards.get(i));
 
-                    // 直接發牌
-                    outstream.writeUTF((String) my_cards.get(i)); // 發送第 i 張牌給自己，也就是第 i + 1 張明牌
-                    System.out.println("send player" + player + "'s (" + i + " -card) " + my_cards.get(i));
-
-                    // 發送給 client，對手的明牌
-                    outstream.writeUTF((String) opponent_cards.get(i)); // 發送對手的第 i 張牌
-                    System.out.println("send opponent's (" + i + " -card): " + opponent_cards.get(i));
-
+                        // 發送給 client，對手的明牌
+                        outstream.writeUTF((String) opponent_cards.get(i)); // 發送對手的第 i 張牌
+                        System.out.println("send opponent's (" + i + " -card): " + opponent_cards.get(i));
+                    }
                 }
 
 
@@ -530,6 +531,8 @@ class ServerThread extends Thread implements Runnable {
                             outstream.write(1); // You are WINNER!!
                             outstream.writeLong(Global_cards.bet_sum); // 回傳檯面上的所有金額給贏家
                             System.out.println("返還 " + Global_cards.bet_sum + " 金額給贏家");
+                            // 賭金已經發還給玩家，將檯面上的賭金清空
+                            Global_cards.bet_sum = 0;
                             break;
                         case 2:
                             outstream.write(0); // You lose...
