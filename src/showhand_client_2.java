@@ -61,6 +61,7 @@ public class showhand_client_2 extends Frame implements Runnable {
 
                 String card = ""; // 所有收到的牌都會先是這個
                 String User_input = ""; // 使用者輸入操作
+                String answer = "";
 
                 // 接收問題，並回傳 id
                 Scanner inputReader = new Scanner(System.in); // 創建 scanner
@@ -105,13 +106,25 @@ public class showhand_client_2 extends Frame implements Runnable {
                             // 如果伺服器回傳 0，代表我的牌分比較小，需要等待對面做完動作，才換我動作
                             System.out.println("Your card is smaller than your opponent, please wait for his choice...");
                             // 伺服器會回傳對面的動作
-                            String answer = instream.readUTF();
+                            answer = instream.readUTF();
                             System.out.println(answer); // 印出對面做的動作
                             String[] find_bet = answer.split(" ");
-                            opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
+                            if(find_bet[4] == "raise") {
+                                opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
+                            }
                             // 讀取 client 的動作
+                            if(find_bet[4].equalsIgnoreCase("drop!")) {
+                                answer = "drop";
+                                break;
+                            }
+                            else if(find_bet[4].equalsIgnoreCase("showhand!!")) {
+                                answer = "showhand";
+                                break;
+                            }
                             User_input = inputReader.next();
+
                             outstream.writeUTF(User_input);
+
                             break;
                         case 1:
                             // 如果伺服器回傳 1，代表我的牌分比較大，可以先做動作
@@ -122,6 +135,15 @@ public class showhand_client_2 extends Frame implements Runnable {
                             break;
                         default:
                             System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
+                    }
+
+                    if(answer.equalsIgnoreCase("drop")) {
+                        break;
+                    }
+                    else if (answer.equalsIgnoreCase("showhand")) {
+                        outstream.writeLong(Client2_OwnCard.my_bet);
+                        Client2_OwnCard.my_bet = 0;
+                        break;
                     }
 
                     // 就 client 做的動作做出相應的處置
@@ -137,12 +159,21 @@ public class showhand_client_2 extends Frame implements Runnable {
                         // 讀取伺服器回傳對手的動作
                         String follow_message = instream.readUTF();
                         System.out.println(follow_message);
+                        if(follow_message.equalsIgnoreCase("Your opponent chose to drop!")) break;
+                        if(follow_message.equalsIgnoreCase("Your opponent chose to showhand!!")) break;
                     }
                     else if(User_input.equalsIgnoreCase("follow")) {
                         Client2_OwnCard.my_bet -= opponent_bets; // 扣掉自己的錢
                         outstream.writeLong(opponent_bets);
                     }
-
+                    else if (User_input.equalsIgnoreCase("drop")) {
+                        break;
+                    }
+                    else if (User_input.equalsIgnoreCase("showhand")) {
+                        outstream.writeLong(Client2_OwnCard.my_bet);
+                        Client2_OwnCard.my_bet = 0;
+                        break;
+                    }
                     // 最後一圈迴圈只是用來下注，不需要收牌
                     if(card_count < 5){
                         card = instream.readUTF();
@@ -169,7 +200,10 @@ public class showhand_client_2 extends Frame implements Runnable {
                 outstream.writeLong(score);
 
                 // 等待伺服器回傳勝負結果
+                //String wtf = instream.readUTF();
                 int win_or_lose = instream.read();
+
+                System.out.println(win_or_lose);
                 switch (win_or_lose){
                     case 0:
                         // 如果伺服器回傳 0，代表我輸了
