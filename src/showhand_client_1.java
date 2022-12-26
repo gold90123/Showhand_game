@@ -62,7 +62,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                 String User_input = ""; // 讀取使用者的輸入操作
                 String answer = "";
 
-                outstream.writeLong(Client1_OwnCard.my_bet);
+                outstream.writeLong(Client1_OwnCard.my_bet); //回合一開始就傳自己的本金(server 199行)
 
                 // 接收問題，並回傳 id
                 Scanner inputReader = new Scanner(System.in); // 創建 scanner
@@ -97,7 +97,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                 System.out.println("score is: " + score);
                 outstream.writeLong(score);
 
-                Client1_EnemyCard.enemy_bet = instream.readLong(); //收對手的原始賭金
+                Client1_EnemyCard.enemy_bet = instream.readLong(); //收對手的原始賭金(server 261行)
 
                 for(int card_count = 2; card_count < 6; card_count++) {
 
@@ -116,7 +116,6 @@ public class showhand_client_1 extends Frame implements Runnable {
                             if(find_bet[4].equalsIgnoreCase("raise")) {//如果對手raise
                                 opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
                                 Client1_EnemyCard.enemy_bet -= opponent_bets;
-                                System.out.println("enemy money -= " + opponent_bets);
                             }
                             // 讀取 client 的動作
                             if(find_bet[4].equalsIgnoreCase("drop!")) {//如果對手drop
@@ -170,7 +169,6 @@ public class showhand_client_1 extends Frame implements Runnable {
                     }
                     else if (User_input.equalsIgnoreCase("showhand")) {
                         long available_bets = Math.min(Client1_OwnCard.my_bet, Client1_EnemyCard.enemy_bet);
-                        System.out.println("show" + available_bets);
                         Client1_OwnCard.my_bet -= available_bets;
                         outstream.writeLong(available_bets);
 
@@ -234,7 +232,7 @@ public class showhand_client_1 extends Frame implements Runnable {
                     default:
                         System.out.println("伺服器傳送了非 0 或非 1 的值，是伺服器的錯");
                 }
-
+                Client1_EnemyCard.enemy_bet = 0;
 
             } catch (IOException ex) {
                 ex.printStackTrace();
