@@ -392,11 +392,14 @@ class ServerThread extends Thread implements Runnable {
                                     client2_cards.pass = true;
                                 } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
                                     client2_cards.drop = true;
+                                    Global_cards.quick_exit = true;
+
                                 } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
                                     client1_cards.bet = instream.readLong();
                                     Global_cards.bet_sum += client1_cards.bet;
                                     System.out.println("賭金加了 " + client1_cards.bet + ". 現在有: " + Global_cards.bet_sum);
                                     client2_cards.showhand = true;
+                                    Global_cards.quick_exit = true;
                                 } else {
                                     System.out.println("沒有回答要做甚麼動作，或回答錯誤");
                                 }
@@ -451,8 +454,10 @@ class ServerThread extends Thread implements Runnable {
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
                                     client1_cards.pass = true;
                                 } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
+                                    Global_cards.quick_exit = true;
                                     client1_cards.drop = true;
                                 } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
+                                    Global_cards.quick_exit = true;
                                     client1_cards.showhand = true;
                                 } else {
                                     System.out.println("沒有回答要做甚麼動作，或回答錯誤");
