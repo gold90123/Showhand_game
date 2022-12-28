@@ -198,11 +198,11 @@ class ServerThread extends Thread implements Runnable {
                 switch (player) {
                     case 1 :
                         client1_cards.showhand_bet = instream.readLong();
-                        System.out.println(client1_cards.showhand_bet + " plz");//測試用輸出
+                        System.out.println(client1_cards.showhand_bet + " plz " + player);//測試用輸出
                         break;
                     case 2 :
                         client2_cards.showhand_bet = instream.readLong();
-                        System.out.println(client2_cards.showhand_bet + " plz");//測試用輸出
+                        System.out.println(client2_cards.showhand_bet + " plz" + player);//測試用輸出
                         break;
                     default:System.out.println("FUCK");
                 }
@@ -210,7 +210,7 @@ class ServerThread extends Thread implements Runnable {
                 // 詢問 id
                 String ask_id = "Hello, please input your id in below.";
                 outstream.writeUTF(ask_id);
-                System.out.println("已傳送問題(詢問 id)");
+                System.out.println("已傳送問題(詢問 id)" + player);
                 // 回收他們回傳的 id
                 String id = instream.readUTF();
                 Global_player.player_name.add(id); // 把 id 加到全域的 player_name
@@ -421,7 +421,6 @@ class ServerThread extends Thread implements Runnable {
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
                                     client2_cards.pass = true;
                                 } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
-                                    outstream.writeUTF("Your opponent chose to drop!");
                                     client2_cards.drop = true;
                                     Global_cards.quick_exit_drop = true;
                                 } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
@@ -479,7 +478,6 @@ class ServerThread extends Thread implements Runnable {
                                 } else if (decision.equalsIgnoreCase("pass")) { // 選擇了過牌
                                     client1_cards.pass = true;
                                 } else if (decision.equalsIgnoreCase("drop")) { // 選擇了棄牌
-                                    outstream.writeUTF("Your opponent chose to drop!");
                                     Global_cards.quick_exit_drop = true;//開一個快速break出去的路
                                     client1_cards.drop = true;
                                 } else if (decision.equalsIgnoreCase("showhand")) { // 選擇了梭哈
@@ -569,13 +567,17 @@ class ServerThread extends Thread implements Runnable {
                 switch (player) {
                     case 1:
                         client1_cards.score = score; // 儲存分數
-                        if(client1_cards.drop) client1_cards.score = 0;
+                        if(client1_cards.drop) {
+                            client1_cards.score = 0;
+                        }
                         client1_cards.ready = 10; // 代表已經儲存好了
                         System.out.println("client1 is ready(計算最後總分)");
                         break;
                     case 2:
                         client2_cards.score = score; // 儲存分數
-                        if(client2_cards.drop) client2_cards.score = 0;
+                        if(client2_cards.drop) {
+                            client2_cards.score = 0;
+                        }
                         client2_cards.ready = 10; // 代表已經儲存好了
                         System.out.println("client2 is ready(計算最後總分)");
                         break;
@@ -609,9 +611,11 @@ class ServerThread extends Thread implements Runnable {
                             System.out.println("返還 " + Global_cards.bet_sum + " 金額給贏家");
                             // 賭金已經發還給玩家，將檯面上的賭金清空
                             Global_cards.bet_sum = 0;
+                            client1_cards.ready = 11;
                             break;
                         case 2:
                             outstream.write(0); // You lose...
+                            client2_cards.ready = 11;
                             break;
                         default:
                             System.out.println("Players too much"); // 目前只支持兩人對戰
@@ -621,6 +625,7 @@ class ServerThread extends Thread implements Runnable {
                     switch (player){
                         case 1:
                             outstream.write(0); // You lose...
+                            client1_cards.ready = 11;
                             break;
                         case 2:
                             outstream.write(1); // You are WINNER!!
@@ -628,9 +633,25 @@ class ServerThread extends Thread implements Runnable {
                             System.out.println("返還" + Global_cards.bet_sum + " 金額給贏家");
                             // 賭金已經發還給玩家，將檯面上的賭金清空
                             Global_cards.bet_sum = 0;
+                            client2_cards.ready = 11;
                             break;
                         default:
                             System.out.println("Players too much"); // 目前只支持兩人對戰
+                    }
+                }
+
+                synchronized (Global_cards.lock){
+                    if (!(client1_cards.ready == 11 && client2_cards.ready == 11)) {
+                        // 如果有其中一個 client 沒有跑好，就進來等待
+                        System.out.println(client1_cards.ready +" "+ client2_cards.ready);
+                        try {
+                            Global_cards.lock.wait();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }else{
+                        // 如果進到這裡，代表兩個 client 都已經 ready
+                        Global_cards.lock.notifyAll(); // 使用 notifyAll 喚醒正在 wait 的執行緒
                     }
                 }
             }
