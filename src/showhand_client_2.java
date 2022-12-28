@@ -99,7 +99,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                 System.out.println("score is: " + score);
                 outstream.writeLong(score);
 
-                Client2_EnemyCard.enemy_bet = instream.readLong(); //收對手的原始賭金(server 261行)
+                Client2_EnemyCard.enemy_bet = instream.readLong(); // 收對手的原始賭金(server 261行)
 
                 for(int card_count = 2; card_count < 6; card_count++)
                 {
@@ -116,13 +116,13 @@ public class showhand_client_2 extends Frame implements Runnable {
                             System.out.println(answer); // 印出對面做的動作
                             String[] find_bet = answer.split(" ");
 
-                            if(find_bet[4].equalsIgnoreCase("raise")) {//如果對手raise
+                            if(find_bet[4].equalsIgnoreCase("raise")) { //如果對手raise
                                 opponent_bets = Integer.parseInt(find_bet[5]); // 收集對手的賭金
                                 Client2_EnemyCard.enemy_bet -= opponent_bets;
                             }
                             // 讀取 client 的動作
                             if(find_bet[4].equalsIgnoreCase("drop!")) {//如果對手drop
-                                answer = "drop";//自己也要跟著drop出去結算(分數不歸零)
+                                answer = "drop"; // 自己也要跟著drop出去結算(分數不歸零)
                                 break;
                             }
                             if(find_bet[4].equalsIgnoreCase("showhand!!")) {
@@ -132,11 +132,17 @@ public class showhand_client_2 extends Frame implements Runnable {
                             User_input = inputReader.next();
 
                             outstream.writeUTF(User_input);
-
                             break;
                         case 1:
                             // 如果伺服器回傳 1，代表我的牌分比較大，可以先做動作
-                            System.out.println("Your card is bigger than your opponent, do you want to raise or pass or drop or even showhand.(Please enter your decision)");
+                            if(card_count < 5){
+                                // 前面的回合不可以梭哈
+                                System.out.println("Your card is bigger than your opponent, do you want to raise or drop.(Please enter your decision)");
+                            }
+                            else{
+                                // 最後一回合才可以梭哈
+                                System.out.println("Your card is bigger than your opponent, do you want to raise or drop or even showhand.(Please enter your decision)");
+                            }
                             // 讀取 client 的動作
                             User_input = inputReader.next();
                             outstream.writeUTF(User_input);
@@ -162,8 +168,10 @@ public class showhand_client_2 extends Frame implements Runnable {
                         // 讀取伺服器回傳對手的動作
                         String follow_message = instream.readUTF();
                         System.out.println(follow_message);
-                        if(follow_message.equalsIgnoreCase("Your opponent chose to follow you!")) Client2_EnemyCard.enemy_bet-=bet;
-                        if(follow_message.equalsIgnoreCase("Your opponent chose to drop!")) break;
+                        if(follow_message.equalsIgnoreCase("Your opponent chose to follow you!"))
+                            Client2_EnemyCard.enemy_bet -= bet;
+                        if(follow_message.equalsIgnoreCase("Your opponent chose to drop!"))
+                            break;
                     }
                     else if(User_input.equalsIgnoreCase("follow")) {
                         Client2_OwnCard.my_bet -= opponent_bets; // 扣掉自己的錢
