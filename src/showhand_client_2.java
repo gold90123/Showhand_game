@@ -126,7 +126,7 @@ public class showhand_client_2 extends Frame implements Runnable {
                                 break;
                             }
                             if(find_bet[4].equalsIgnoreCase("showhand!!")) {
-                                opponent_bets = Client2_EnemyCard.enemy_bet;
+                                opponent_bets = Math.min(Client2_OwnCard.my_bet, Client2_EnemyCard.enemy_bet);
                             }
 
                             User_input = inputReader.next();
